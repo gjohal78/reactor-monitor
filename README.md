@@ -28,7 +28,7 @@ make up          # postgres + backend + frontend
 
 ## Development
 
-Requires Python 3.12 and Node 22 on the host for local tooling.
+Requires Python 3.12 and Node 22.12+ on the host for local tooling (`.nvmrc` pins Node 22; `nvm use` picks it up).
 
 ```bash
 make install     # backend/.venv + frontend/node_modules
