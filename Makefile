@@ -25,11 +25,13 @@ $(VENV):
 	python3.12 -m venv $(VENV)
 	$(PY)/pip install -e "$(BACKEND)[dev]"
 
-$(FRONTEND)/node_modules: $(FRONTEND)/package-lock.json
+# Track npm's own marker file, not the node_modules/ directory: docker compose leaves an
+# empty frontend/node_modules/ on the host (the container's node_modules volume mount point).
+$(FRONTEND)/node_modules/.package-lock.json: $(FRONTEND)/package-lock.json
 	cd $(FRONTEND) && npm ci
 	@touch $@
 
-install: $(VENV) $(FRONTEND)/node_modules ## Install backend venv and frontend deps
+install: $(VENV) $(FRONTEND)/node_modules/.package-lock.json ## Install backend venv and frontend deps
 
 # --- Quality ----------------------------------------------------------------
 test: test-backend test-frontend ## Run all tests
@@ -37,7 +39,7 @@ test: test-backend test-frontend ## Run all tests
 test-backend: $(VENV)
 	cd $(BACKEND) && .venv/bin/pytest
 
-test-frontend: $(FRONTEND)/node_modules
+test-frontend: $(FRONTEND)/node_modules/.package-lock.json
 	cd $(FRONTEND) && npm test
 
 lint: lint-backend lint-frontend ## Run ruff, mypy, eslint and tsc
@@ -45,7 +47,7 @@ lint: lint-backend lint-frontend ## Run ruff, mypy, eslint and tsc
 lint-backend: $(VENV)
 	cd $(BACKEND) && .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy
 
-lint-frontend: $(FRONTEND)/node_modules
+lint-frontend: $(FRONTEND)/node_modules/.package-lock.json
 	cd $(FRONTEND) && npm run lint && npm run typecheck
 
 format: $(VENV) ## Auto-fix and format Python code
