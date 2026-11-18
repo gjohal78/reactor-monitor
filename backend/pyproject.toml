@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "pydantic-settings>=2.4",
     "sqlalchemy>=2.0",
+    "alembic>=1.13",
     "psycopg[binary]>=3.2",
 ]
 
@@ -52,7 +53,7 @@ select = [
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["app", "tests"]
+files = ["app", "tests", "migrations"]
 
 [tool.pydantic-mypy]
 init_forbid_extra = true

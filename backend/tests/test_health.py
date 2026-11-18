@@ -6,7 +6,7 @@ from app.core.config import Settings
 
 
 def test_health_returns_ok(client: TestClient) -> None:
-    response = client.get("/health")
+    response = client.get("/api/health")
 
     assert response.status_code == 200
     assert response.json() == {
@@ -18,7 +18,7 @@ def test_health_returns_ok(client: TestClient) -> None:
 
 
 def test_health_allows_configured_cors_origin(client: TestClient) -> None:
-    response = client.get("/health", headers={"Origin": "http://test"})
+    response = client.get("/api/health", headers={"Origin": "http://test"})
 
     assert response.headers["access-control-allow-origin"] == "http://test"
 

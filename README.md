@@ -22,7 +22,9 @@ make up          # postgres + backend + frontend
 
 - Frontend: http://localhost:5173
 - API docs: http://localhost:8000/docs
-- Health: http://localhost:8000/health
+- Health: http://localhost:8000/api/health
+- History: http://localhost:8000/api/history?minutes=15
+- Live telemetry: `ws://localhost:8000/ws/telemetry` (10 Hz JSON)
 
 `make down` stops everything.
 
@@ -45,14 +47,18 @@ frontend/   Vite + React + TypeScript
 docker-compose.yml
 ```
 
-The frontend calls the API through Vite's dev proxy at `/api/*`, so the browser
-sees a single origin in development.
+The backend serves JSON under `/api/*` and WebSockets under `/ws/*`. Vite proxies both
+paths in development, so the browser sees a single origin.
+
+Database migrations live in `backend/migrations` (Alembic). `make up` applies them
+automatically before the API starts; `make migrate` applies them to the database in your
+`DATABASE_URL`.
 
 ## Roadmap
 
-- [ ] Reactor simulator
-- [ ] Live telemetry over WebSockets
-- [ ] Persistence with SQLAlchemy + migrations
+- [x] Reactor simulator
+- [x] Live telemetry over WebSockets
+- [x] Persistence with SQLAlchemy + migrations
 - [ ] JWT auth with roles
 - [ ] Recharts dashboard
 

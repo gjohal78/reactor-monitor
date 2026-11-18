@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help up down logs install test test-backend test-frontend lint lint-backend lint-frontend format
+.PHONY: help up down logs migrate install test test-backend test-frontend lint lint-backend lint-frontend format
 
 BACKEND  := backend
 FRONTEND := frontend
@@ -19,6 +19,9 @@ down: ## Stop all services
 
 logs: ## Tail service logs
 	docker compose logs -f
+
+migrate: $(VENV) ## Apply database migrations to DATABASE_URL
+	cd $(BACKEND) && .venv/bin/alembic upgrade head
 
 # --- Local toolchain --------------------------------------------------------
 $(VENV):
