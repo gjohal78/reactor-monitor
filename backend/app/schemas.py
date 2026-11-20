@@ -1,9 +1,13 @@
 """API schemas shared by the WebSocket stream and the history endpoint."""
 
+import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from app.alarms.manager import AlarmChange, AlarmRecord
+from app.alarms.states import AlarmEvent, AlarmState
 from app.sim.reactor import ReactorState
 
 
@@ -50,3 +54,60 @@ class HistoryResponse(BaseModel):
     minutes: int
     count: int
     readings: list[ReadingOut]
+
+
+# --- Alarms ---------------------------------------------------------------------------------
+
+
+class AlarmOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    code: str
+    description: str
+    unit: str
+    state: AlarmState
+    limit: float
+    deadband: float
+    trigger_value: float
+    activation_count: int
+    activated_at: datetime
+    acknowledged_at: datetime | None
+    cleared_at: datetime | None
+    closed_at: datetime | None
+    updated_at: datetime | None
+
+    @classmethod
+    def from_record(cls, record: AlarmRecord) -> "AlarmOut":
+        return cls.model_validate(record)
+
+
+class AlarmChangeOut(AlarmOut):
+    previous_state: AlarmState
+    event: AlarmEvent
+
+    @classmethod
+    def from_change(cls, change: AlarmChange) -> "AlarmChangeOut":
+        base = AlarmOut.from_record(change.record).model_dump()
+        return cls(**base, previous_state=change.previous_state, event=change.event)
+
+
+# --- WebSocket messages -----------------------------------------------------------------------
+# Every frame on /ws/telemetry is {"type": ..., "data": ...} so clients can dispatch on type.
+
+
+class TelemetryMessage(BaseModel):
+    type: Literal["telemetry"] = "telemetry"
+    data: Telemetry
+
+
+class AlarmMessage(BaseModel):
+    type: Literal["alarm"] = "alarm"
+    data: AlarmChangeOut
+
+
+class AlarmSnapshotMessage(BaseModel):
+    """Sent once on connect: every alarm that is currently open."""
+
+    type: Literal["alarm_snapshot"] = "alarm_snapshot"
+    data: list[AlarmOut]

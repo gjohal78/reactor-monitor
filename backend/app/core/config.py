@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     simulator_hz: float = Field(default=10.0, gt=0, le=100)
     persist_interval_s: float = Field(default=1.0, gt=0)
 
+    # --- Alarm limits (educational defaults; see app/alarms/definitions.py) -------------
+    alarm_hi_power_percent: float = 105.0
+    alarm_hi_power_deadband: float = Field(default=2.0, ge=0)
+    alarm_hi_temp_c: float = 314.0
+    alarm_hi_temp_deadband: float = Field(default=1.0, ge=0)
+    alarm_short_period_s: float = Field(default=15.0, gt=0)
+    alarm_short_period_deadband: float = Field(default=5.0, ge=0)
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_origins(cls, value: object) -> object:

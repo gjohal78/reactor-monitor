@@ -1,5 +1,5 @@
-"""Runs the reactor in the background: steps it at a fixed rate, broadcasts every sample
-and persists one reading per ``persist_interval_s``.
+"""Runs the reactor in the background: steps it at a fixed rate, checks alarm limits,
+broadcasts every sample and persists one reading per ``persist_interval_s``.
 
 Timing: each tick advances simulated time by exactly ``1 / hz`` seconds, and ticks are
 scheduled against absolute deadlines (``next += period``) rather than by sleeping a fixed
@@ -18,13 +18,17 @@ import contextlib
 import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db.models import Reading
 from app.realtime.hub import TelemetryHub
-from app.schemas import Telemetry
+from app.schemas import Telemetry, TelemetryMessage
 from app.sim.reactor import Reactor
+
+if TYPE_CHECKING:
+    from app.alarms.service import AlarmService
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +49,11 @@ class SimulationRunner:
         hz: float = 10.0,
         persist_interval_s: float = 1.0,
         clock: Callable[[], datetime] = utc_now,
+        alarms: "AlarmService | None" = None,
     ) -> None:
         self.reactor = reactor
         self.hub = hub
+        self.alarms = alarms
         self._session_factory = session_factory
         self.period_s = 1.0 / hz
         self.persist_every = max(1, round(persist_interval_s * hz))
@@ -95,11 +101,14 @@ class SimulationRunner:
             await asyncio.sleep(max(delay, 0.0))
 
     def tick(self) -> Telemetry:
-        """Advance one period, broadcast the new state and persist it when due."""
+        """Advance one period, check alarms, broadcast the new state, persist it when due."""
         state = self.reactor.step(self.period_s)
         self.ticks += 1
-        telemetry = Telemetry.from_state(state, self._clock())
-        self.hub.publish(telemetry.model_dump_json())
+        now = self._clock()
+        telemetry = Telemetry.from_state(state, now)
+        self.hub.publish(TelemetryMessage(data=telemetry).model_dump_json())
+        if self.alarms is not None:
+            self.alarms.evaluate(state, now)
         if self.ticks % self.persist_every == 0:
             self._schedule_persist(telemetry)
         return telemetry

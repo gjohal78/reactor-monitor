@@ -5,9 +5,14 @@ from fastapi.testclient import TestClient
 
 def test_websocket_streams_live_telemetry(live_client: TestClient) -> None:
     with live_client.websocket_connect("/ws/telemetry") as ws:
-        first = ws.receive_json()
-        second = ws.receive_json()
+        snapshot = ws.receive_json()
+        first_msg = ws.receive_json()
+        second_msg = ws.receive_json()
 
+    # Steady full power: no alarms are open, so the snapshot on connect is empty.
+    assert snapshot == {"type": "alarm_snapshot", "data": []}
+    assert first_msg["type"] == second_msg["type"] == "telemetry"
+    first, second = first_msg["data"], second_msg["data"]
     assert set(first) == {
         "timestamp",
         "sim_time_s",
@@ -29,7 +34,7 @@ def test_disconnected_clients_are_unsubscribed(live_client: TestClient) -> None:
     hub = live_client.app.state.hub  # type: ignore[attr-defined]
 
     with live_client.websocket_connect("/ws/telemetry") as ws:
-        ws.receive_json()
+        ws.receive_json()  # alarm snapshot
         assert hub.subscriber_count == 1
 
     deadline = time.monotonic() + 2.0

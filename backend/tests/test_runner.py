@@ -34,9 +34,10 @@ def test_persists_one_reading_per_second_and_broadcasts_every_tick(engine: Engin
         for _ in range(30):  # 3 simulated seconds at 10 Hz
             runner.tick()
             await runner.wait_for_persist()
-        assert queue.qsize() == 30
+        assert len(queue) == 30
         last = json.loads(hub.latest or "{}")
-        assert round(last["sim_time_s"], 6) == 3.0
+        assert last["type"] == "telemetry"
+        assert round(last["data"]["sim_time_s"], 6) == 3.0
 
     asyncio.run(scenario())
 
@@ -54,9 +55,24 @@ def test_slow_client_queue_drops_oldest_messages() -> None:
         queue = hub.subscribe()
         for i in range(5):
             hub.publish(str(i))
-        return [queue.get_nowait() for _ in range(queue.qsize())]
+        return [queue.get_nowait() for _ in range(len(queue))]
 
     assert asyncio.run(scenario()) == ["2", "3", "4"]
+
+
+def test_slow_client_never_loses_alarm_messages() -> None:
+    hub = TelemetryHub(queue_size=3)
+
+    async def scenario() -> list[str]:
+        queue = hub.subscribe()
+        hub.publish("alarm-1", critical=True)
+        for i in range(5):
+            hub.publish(f"t{i}")
+        hub.publish("alarm-2", critical=True)
+        return [queue.get_nowait() for _ in range(len(queue))]
+
+    # Telemetry was dropped oldest-first to make room; both alarms survived, in order.
+    assert asyncio.run(scenario()) == ["alarm-1", "t4", "alarm-2"]
 
 
 def test_runner_loop_ticks_at_configured_rate(engine: Engine) -> None:

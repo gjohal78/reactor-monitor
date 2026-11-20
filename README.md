@@ -24,7 +24,9 @@ make up          # postgres + backend + frontend
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/api/health
 - History: http://localhost:8000/api/history?minutes=15
-- Live telemetry: `ws://localhost:8000/ws/telemetry` (10 Hz JSON)
+- Alarms: `GET /api/alarms`, `POST /api/alarms/{id}/ack`
+- Live stream: `ws://localhost:8000/ws/telemetry`, JSON frames `{"type", "data"}`:
+  `alarm_snapshot` on connect, then `telemetry` (10 Hz) and `alarm` (state changes)
 
 `make down` stops everything.
 
@@ -61,6 +63,24 @@ automatically before the API starts; `make migrate` applies them to the database
 - [x] Persistence with SQLAlchemy + migrations
 - [ ] JWT auth with roles
 - [ ] Recharts dashboard
+
+## Alarms
+
+HI power (105 %), HI coolant temperature (314 °C) and short reactor period (15 s), each
+with a deadband to stop chattering. Limits are configurable through `ALARM_*` settings
+(see `backend/app/core/config.py`). States follow ISA-18.2 practice:
+
+```
+NORMAL ──active──▶ ACTIVE_UNACKED ──ack──▶ ACTIVE_ACKED ──clear──▶ NORMAL
+                        │                                    ▲
+                      clear                                  │
+                        ▼                                    │
+                  CLEARED_UNACKED ───────────ack─────────────┘
+                        └──active──▶ ACTIVE_UNACKED
+```
+
+An alarm only returns to NORMAL once its condition has cleared *and* it has been
+acknowledged, so a transient that came and went is never lost.
 
 ## License
 

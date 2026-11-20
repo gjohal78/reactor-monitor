@@ -1,10 +1,18 @@
-"""Live telemetry over WebSocket."""
+"""Live telemetry and alarm changes over WebSocket.
+
+Frames are JSON objects ``{"type": ..., "data": ...}``:
+
+- ``alarm_snapshot``: sent once on connect, listing every currently open alarm
+- ``telemetry``: every simulator sample (10 Hz)
+- ``alarm``: an alarm changed state (``data.previous_state`` -> ``data.state``)
+"""
 
 import asyncio
 import contextlib
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.alarms.service import AlarmService
 from app.realtime.hub import TelemetryHub
 
 router = APIRouter(tags=["telemetry"])
@@ -12,18 +20,23 @@ router = APIRouter(tags=["telemetry"])
 
 @router.websocket("/ws/telemetry")
 async def telemetry(websocket: WebSocket) -> None:
-    """Stream every simulator sample (10 Hz) as JSON text frames. Server-to-client only.
+    """Stream telemetry and alarm changes as JSON text frames. Server-to-client only.
 
-    The latest sample is sent immediately on connect, so a client never waits for a tick.
+    On connect the client gets the open alarms and the latest sample straight away. The
+    subscription starts before that snapshot is taken (with no await in between), so no
+    alarm change can fall in the gap between the snapshot and the live stream.
     A second task reads from the socket purely to notice when the client disconnects;
     otherwise a client that goes away would only be noticed on the next failed send.
     """
     hub: TelemetryHub = websocket.app.state.hub
+    alarms: AlarmService = websocket.app.state.alarms
     await websocket.accept()
     queue = hub.subscribe()
+    snapshot, latest = alarms.snapshot_message(), hub.latest
     try:
-        if hub.latest is not None:
-            await websocket.send_text(hub.latest)
+        await websocket.send_text(snapshot)
+        if latest is not None:
+            await websocket.send_text(latest)
 
         async def send_loop() -> None:
             while True:
