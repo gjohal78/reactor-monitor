@@ -1,4 +1,9 @@
 .DEFAULT_GOAL := help
+
+# Ports for the messages below come from .env when set (same values docker compose uses).
+-include .env
+BACKEND_PORT  ?= 8000
+FRONTEND_PORT ?= 5173
 .PHONY: help up down logs migrate install test test-backend test-frontend lint lint-backend lint-frontend format
 
 BACKEND  := backend
@@ -13,7 +18,7 @@ help: ## Show available targets
 # --- Docker -----------------------------------------------------------------
 up: ## Build and start postgres, backend and frontend
 	docker compose up --build -d
-	@echo "Frontend: http://localhost:5173  API docs: http://localhost:8000/docs"
+	@echo "Frontend: http://localhost:$(FRONTEND_PORT)  API docs: http://localhost:$(BACKEND_PORT)/docs"
 
 down: ## Stop all services
 	docker compose down
