@@ -259,3 +259,59 @@ def test_production_refuses_the_default_secret() -> None:
         Settings(_env_file=None, environment="production")  # built-in dev secret
 
     Settings(_env_file=None, environment="production", jwt_secret=TEST_JWT_SECRET)
+
+
+def run_seed(monkeypatch: pytest.MonkeyPatch, database_url: str, **env: str) -> int:
+    from app.core import config
+
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("BCRYPT_ROUNDS", "4")
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    config.get_settings.cache_clear()
+    try:
+        return cli_main(["seed-demo"])
+    finally:
+        config.get_settings.cache_clear()
+
+
+def test_seed_demo_creates_one_user_per_role_and_is_idempotent(
+    client: TestClient, database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env = {"SEED_DEMO_USERS": "true", "ENVIRONMENT": "development"}
+
+    assert run_seed(monkeypatch, database_url, **env) == 0
+    assert run_seed(monkeypatch, database_url, **env) == 0  # second start: no duplicates
+
+    for role in Role:
+        headers = login(client, role.value, f"{role.value}-demo")
+        assert client.get("/api/auth/me", headers=headers).json()["role"] == role.value
+
+
+def test_seed_demo_does_nothing_unless_enabled(
+    client: TestClient, database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert run_seed(monkeypatch, database_url, ENVIRONMENT="development") == 0
+
+    response = client.post(
+        "/api/auth/login", data={"username": "operator", "password": "operator-demo"}
+    )
+    assert response.status_code == 401
+
+
+def test_seed_demo_refuses_outside_development(
+    client: TestClient, database_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    code = run_seed(
+        monkeypatch,
+        database_url,
+        SEED_DEMO_USERS="true",
+        ENVIRONMENT="production",
+        JWT_SECRET=TEST_JWT_SECRET,
+    )
+
+    assert code == 1
+    response = client.post(
+        "/api/auth/login", data={"username": "operator", "password": "operator-demo"}
+    )
+    assert response.status_code == 401

@@ -147,11 +147,37 @@ jobs:
             frontend/test-results
             backend.log
 
+  quickstart:
+    name: Quick start (fresh clone, docker compose up)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: docker compose up (no .env, no setup, exactly as in the README)
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: The app loads and every demo user can sign in through the frontend
+        run: |
+          curl -fs localhost:5173/ | grep -q '<div id="root">'
+          curl -fs localhost:5173/api/health
+          for role in viewer operator supervisor; do
+            token=$(curl -fs -X POST localhost:5173/api/auth/login \
+              -d "username=$role&password=$role-demo" | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
+            me=$(curl -fs localhost:5173/api/auth/me -H "Authorization: Bearer $token")
+            echo "$me"
+            echo "$me" | grep -q "\"role\":\"$role\""
+          done
+          # Live telemetry is flowing: a persisted reading appears within a few seconds.
+          sleep 3
+          curl -fs "localhost:5173/api/history?minutes=1" -H "Authorization: Bearer $token" \
+            | python3 -c "import json,sys; n=json.load(sys.stdin)['count']; print(n, 'readings'); assert n > 0"
+      - name: Container logs
+        if: always()
+        run: docker compose logs --no-color | tail -n 100
+
   coverage-badge:
     name: Publish coverage badge
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: [backend, frontend, e2e]
+    needs: [backend, frontend, e2e, quickstart]
     permissions:
       contents: write
     steps:

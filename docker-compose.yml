@@ -19,14 +19,18 @@ services:
 
   backend:
     build: ./backend
-    # Apply migrations, then serve. --reload restarts the API (and the simulator) on code changes.
-    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    # Apply migrations, create the demo users (dev only, see below), then serve.
+    # --reload restarts the API (and the simulator) on code changes.
+    command: sh -c "alembic upgrade head && python -m app.cli seed-demo && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-reactor}:${POSTGRES_PASSWORD:-reactor}@postgres:5432/${POSTGRES_DB:-reactor}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       # Unset in dev: the backend falls back to its dev-only secret (refused outside dev).
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-jwt-secret-do-not-use-in-production}
+      # Demo accounts viewer/operator/supervisor with passwords "<role>-demo" (README).
+      # Honoured only with ENVIRONMENT=development; set SEED_DEMO_USERS=false to skip.
+      SEED_DEMO_USERS: ${SEED_DEMO_USERS:-true}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -41,6 +45,7 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
+      start_period: 30s
 
   frontend:
     build: ./frontend

@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # bcrypt work factor: 12 is about 0.25 s per hash on a laptop. Tests use 4 for speed.
     bcrypt_rounds: int = Field(default=12, ge=4, le=16)
 
+    # Create demo accounts with known passwords on start (`python -m app.cli seed-demo`).
+    # Only honoured when environment == "development"; see app/cli.py.
+    seed_demo_users: bool = False
+
     # --- Rod control envelope (applies to every role) -------------------------------------
     # Rods may not be withdrawn above 10 % inserted (fully withdrawn is +~1000s pcm from
     # the critical position), and one command may move the target at most 5 % of stroke.
