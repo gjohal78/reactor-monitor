@@ -82,6 +82,9 @@ make create-user USERNAME=alice ROLE=supervisor   # while `make up` is running
 | operator | + acknowledge alarms, move rods within the envelope, scram |
 | supervisor | + change alarm limits, reset after a scram, read the audit log |
 
+To try the API, open `/docs`, click **Authorize** and sign in with your username and
+password.
+
 Roles are enforced by FastAPI dependencies on every route, and the user is reloaded
 from the database on each request, so disabling a user or changing a role takes effect
 immediately. Access tokens last 15 minutes, refresh tokens 7 days. Passwords are hashed

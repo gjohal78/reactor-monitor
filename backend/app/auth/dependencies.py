@@ -13,7 +13,7 @@ from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, WebSocket, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth.roles import Role
@@ -22,7 +22,10 @@ from app.core.config import Settings, app_settings
 from app.db.models import User
 from app.db.session import get_session
 
-bearer = HTTPBearer(auto_error=False, description="Access token from POST /api/auth/login")
+# OAuth2 password flow: clients send "Authorization: Bearer <access token>". Declaring it
+# this way (rather than a bare HTTPBearer) makes the /docs "Authorize" button show a
+# username/password form that calls POST /api/auth/login for you.
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 UNAUTHORIZED_HEADERS = {"WWW-Authenticate": "Bearer"}
 
@@ -45,14 +48,14 @@ def user_from_token(
 
 
 def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+    token: Annotated[str | None, Depends(oauth2_scheme)],
     session: Annotated[Session, Depends(get_session)],
     settings: Annotated[Settings, Depends(app_settings)],
 ) -> User:
-    if credentials is None:
+    if not token:
         raise _unauthorized()
     try:
-        user = user_from_token(session, settings, credentials.credentials)
+        user = user_from_token(session, settings, token)
     except InvalidTokenError:
         raise _unauthorized("Invalid or expired token") from None
     session.expunge(user)  # usable after the request's session closes
