@@ -1,66 +1,700 @@
+/*
+ * Control-room theme, after ISA-101 "high-performance HMI" practice: normal operation is
+ * greyscale, and colour is reserved for abnormal states so it draws the eye only when
+ * something needs attention. Red = unacknowledged alarm (flashes), amber = acknowledged
+ * or warning, green = only for "connected". Every status colour also carries a text
+ * label, so nothing relies on colour alone.
+ */
+
 :root {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  color-scheme: light dark;
-  color: #1f2933;
-  background: #f5f7fa;
+  --plane: #0f1216;
+  --panel: #171b21;
+  --panel-raised: #1e232a;
+  --line: #2a3038;
+  --line-strong: #3a414b;
+  --ink: #e8eaed;
+  --ink-2: #9aa3ad;
+  --ink-3: #6b737d;
+
+  --critical: #d03b3b;
+  --critical-ink: #ff8a8a;
+  --warning: #fab219;
+  --good: #0ca30c;
+  --trend: #3987e5;
+  --focus: #7cb7ff;
+
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --gap: 16px;
+
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--plane);
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #e4e7eb;
-    background: #11161c;
-  }
-  .card {
-    background: #1b232c;
-    border-color: #2b3642;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* --- Buttons and fields ------------------------------------------------------------ */
+
+.button {
+  border: 1px solid var(--line-strong);
+  background: var(--panel-raised);
+  border-radius: var(--radius-s);
+  padding: 7px 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--ink-3);
+  background: #252b33;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  color: var(--ink-3);
+  background: transparent;
+}
+
+.button-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--plane);
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.button-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+
+.field label {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.input {
+  width: 100%;
+  background: var(--plane);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  padding: 8px 10px;
+}
+
+.input:focus-visible {
+  outline-offset: 0;
+}
+
+.message {
+  margin: 0;
+  font-size: 14px;
+}
+
+.message-error {
+  color: var(--critical-ink);
+}
+
+.message-muted {
+  color: var(--ink-3);
+}
+
+/* --- App shell ------------------------------------------------------------------- */
+
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.brand {
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+}
+
+.nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-s);
+}
+
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  background: var(--panel-raised);
+}
+
+.header-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  flex: none;
+}
+
+.connection-live .dot {
+  background: var(--good);
+}
+
+.connection-reconnecting {
+  color: var(--warning);
+}
+
+.connection-reconnecting .dot {
+  background: var(--warning);
+}
+
+.user {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.role {
+  color: var(--ink-2);
+  font-size: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 1px 8px;
 }
 
 .page {
-  max-width: 48rem;
+  padding: var(--gap) 24px 32px;
+  display: grid;
+  gap: var(--gap);
+  align-content: start;
+  max-width: 1600px;
+  width: 100%;
   margin: 0 auto;
-  padding: 3rem 1.5rem;
 }
 
-h1 {
-  margin: 0;
-  font-size: 2rem;
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: 16px;
+  min-width: 0;
 }
 
-.disclaimer {
-  margin-top: 0.25rem;
-  opacity: 0.7;
+.panel-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  margin-bottom: 12px;
 }
 
-.card {
-  margin-top: 2rem;
-  padding: 1.25rem 1.5rem;
-  border: 1px solid #d9e2ec;
-  border-radius: 0.75rem;
-  background: #fff;
+/* --- Alarm banner -------------------------------------------------------------------- */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--plane);
 }
 
-.card h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.7;
+.banner-unacked {
+  background: var(--critical);
+  color: #ffffff;
+  border-color: var(--critical);
+  animation: flash 1s steps(1, end) infinite;
 }
 
-.status {
-  margin: 0;
+.banner-acked {
+  background: #3a2c08;
+  color: var(--warning);
+  border-color: #5a440d;
+}
+
+.banner-scrammed {
+  background: #3d1414;
+  color: var(--critical-ink);
+  border-color: var(--critical);
+}
+
+@keyframes flash {
+  50% {
+    background: #7d1f1f;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner-unacked {
+    animation: none;
+  }
+}
+
+.banner-icon {
+  flex: none;
+}
+
+/* --- Dashboard layout ---------------------------------------------------------------- */
+
+.dashboard {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(280px, 340px);
+  gap: var(--gap);
+  align-items: start;
+}
+
+.stack {
+  display: grid;
+  gap: var(--gap);
+}
+
+@media (max-width: 1100px) {
+  .dashboard {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dashboard > .trends {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+@media (max-width: 700px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+  .header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .header-end {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .page {
+    padding: 12px;
+  }
+}
+
+/* --- Gauges -------------------------------------------------------------------------- */
+
+.gauge {
+  display: grid;
+  justify-items: center;
+}
+
+.gauge svg {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+}
+
+.gauge-value {
+  font-size: 34px;
   font-weight: 600;
+  fill: var(--ink);
 }
 
-.status.ok {
-  color: #2f9e44;
+.gauge-unit {
+  font-size: 14px;
+  fill: var(--ink-2);
 }
 
-.status.error {
-  color: #e03131;
+.gauge-scale {
+  font-size: 11px;
+  fill: var(--ink-3);
+}
+
+.gauge-status {
+  margin-top: -6px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+.gauge-status-unacked {
+  color: var(--critical-ink);
+}
+
+.gauge-status-acked {
+  color: var(--warning);
+}
+
+.readouts {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.readouts dt {
+  color: var(--ink-2);
+}
+
+.readouts dd {
+  margin: 0;
+  text-align: right;
+}
+
+/* --- Trends -------------------------------------------------------------------------- */
+
+.trends {
+  display: grid;
+  gap: var(--gap);
+}
+
+.chart {
+  height: 220px;
+}
+
+.chart-empty {
+  height: 220px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+
+.chart-tooltip {
+  background: var(--panel-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.chart-tooltip-time {
+  color: var(--ink-2);
+}
+
+/* --- Rod control --------------------------------------------------------------------- */
+
+.rod-bar {
+  position: relative;
+  height: 28px;
+  background: var(--plane);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.rod-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #4a525d;
+}
+
+.rod-target {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  background: var(--ink);
+}
+
+.rod-limit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed var(--warning);
+}
+
+.rod-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 14px;
+}
+
+.rod-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.rod-nudges {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rod-nudges .button {
+  flex: 1;
+}
+
+.control-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* --- SCRAM: a guarded switch. The cover must be lifted before the button can be pressed. */
+
+.scram {
+  display: grid;
+  gap: 10px;
+}
+
+.scram-cover {
+  width: 100%;
+  min-height: 84px;
+  border: 2px dashed #6b2a2a;
+  border-radius: var(--radius-m);
+  background: repeating-linear-gradient(
+    135deg,
+    #2a1717 0 12px,
+    #231414 12px 24px
+  );
+  color: var(--critical-ink);
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.scram-cover:disabled {
+  cursor: not-allowed;
+  color: var(--ink-3);
+  border-color: var(--line-strong);
+  background: var(--plane);
+}
+
+.scram-armed {
+  display: grid;
+  gap: 8px;
+}
+
+.scram-button {
+  width: 100%;
+  min-height: 84px;
+  border: 2px solid #ff6b6b;
+  border-radius: var(--radius-m);
+  background: var(--critical);
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 0 0 0 4px rgba(208, 59, 59, 0.25);
+}
+
+.scram-button:hover:not(:disabled) {
+  background: #e04848;
+}
+
+.scram-state {
+  border: 1px solid var(--critical);
+  border-radius: var(--radius-m);
+  padding: 12px;
+  background: #241212;
+  color: var(--critical-ink);
+  font-weight: 500;
+}
+
+/* --- Tables ------------------------------------------------------------------------------ */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-strong);
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.table td {
+  border-bottom: 1px solid var(--line);
+  padding: 9px 10px;
+  vertical-align: top;
+}
+
+.table tr:last-child td {
+  border-bottom: 0;
+}
+
+.empty {
+  color: var(--ink-3);
+  padding: 8px 0;
+  margin: 0;
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.state-unacked {
+  color: var(--critical-ink);
+}
+
+.state-acked {
+  color: var(--warning);
+}
+
+.state-cleared {
+  color: var(--ink-2);
+}
+
+.result-ok {
+  color: var(--ink-2);
+}
+
+.result-fail {
+  color: var(--critical-ink);
+}
+
+.change {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.change code {
+  font-family: inherit;
+  color: var(--ink);
+}
+
+/* --- Audit page ------------------------------------------------------------------------ */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.filters .field {
+  min-width: 180px;
+}
+
+.pager {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 12px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+/* --- Login --------------------------------------------------------------------------- */
+
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: 100%;
+  max-width: 380px;
+  display: grid;
+  gap: 18px;
+}
+
+.login-panel h1 {
+  font-size: 24px;
+}
+
+.login-intro {
+  margin: 0;
+  color: var(--ink-2);
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+}
+
+.notice {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  padding: 16px;
+  color: var(--ink-2);
 }

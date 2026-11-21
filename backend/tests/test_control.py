@@ -247,3 +247,12 @@ def test_invalid_alarm_limits_are_rejected(
 
 def test_users_fixture_has_one_user_per_role(users: dict[Role, int]) -> None:
     assert set(users) == set(Role)
+
+
+def test_rod_envelope_matches_what_the_server_enforces(
+    client: TestClient, as_viewer: Headers
+) -> None:
+    assert client.get("/api/reactor/envelope", headers=as_viewer).json() == {
+        "min_insertion_percent": 10.0,
+        "max_withdraw_step_percent": 5.0,
+    }

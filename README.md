@@ -20,7 +20,7 @@ cp .env.example .env
 make up          # postgres + backend + frontend
 ```
 
-- Frontend: http://localhost:5173
+- Frontend: http://localhost:5173 (sign in with a user from `make create-user`)
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/api/health
 - History: http://localhost:8000/api/history?minutes=15
@@ -65,7 +65,20 @@ automatically before the API starts; `make migrate` applies them to the database
 - [x] Live telemetry over WebSockets
 - [x] Persistence with SQLAlchemy + migrations
 - [x] JWT auth with roles
-- [ ] Recharts dashboard
+- [x] Recharts dashboard
+
+## Dashboard
+
+A control-room style dashboard following ISA-101 "high-performance HMI" practice: normal
+values are greyscale, and colour appears only when something is abnormal (red flashing =
+unacknowledged alarm, amber = acknowledged). It shows power and temperature gauges with
+their alarm limits, live 15-minute trends (Recharts), rod control, the alarm list with
+acknowledge buttons, a guarded SCRAM (lift the cover, then press), and the audit log for
+supervisors. Controls a role can't use are disabled or hidden; the backend enforces the
+same rules regardless.
+
+The live connection reconnects by itself with backoff if the WebSocket drops, refreshes the
+login token first, and reloads recent history so the trends have no gap.
 
 ## Users, roles and audit
 

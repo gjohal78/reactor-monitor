@@ -142,6 +142,11 @@ class RodCommandIn(BaseModel):
     target_percent: float = Field(ge=0, le=100, description="Rod insertion target, % of stroke")
 
 
+class RodEnvelopeOut(BaseModel):
+    min_insertion_percent: float
+    max_withdraw_step_percent: float
+
+
 class ReactorControlOut(BaseModel):
     rod_target_percent: float
     rod_position_percent: float

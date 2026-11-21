@@ -17,7 +17,9 @@ help: ## Show available targets
 
 # --- Docker -----------------------------------------------------------------
 up: ## Build and start postgres, backend and frontend
-	docker compose up --build -d
+	# --renew-anon-volumes: give the frontend container the node_modules from the freshly
+	# built image, not the ones kept from the previous container (stale after a dependency change).
+	docker compose up --build -d --renew-anon-volumes
 	@echo "Frontend: http://localhost:$(FRONTEND_PORT)  API docs: http://localhost:$(BACKEND_PORT)/docs"
 
 down: ## Stop all services

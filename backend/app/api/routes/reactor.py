@@ -11,10 +11,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.audit.log import AuditAction, AuditLogger
-from app.auth.dependencies import Operator, Supervisor
+from app.auth.dependencies import Operator, Supervisor, Viewer
 from app.core.config import Settings, app_settings
 from app.db.models import User
-from app.schemas import ReactorControlOut, RodCommandIn
+from app.schemas import ReactorControlOut, RodCommandIn, RodEnvelopeOut
 from app.sim.reactor import Reactor
 
 router = APIRouter(prefix="/reactor", tags=["reactor control"])
@@ -73,6 +73,17 @@ async def reject(
         client_ip=request.client.host if request.client else None,
     )
     return HTTPException(code, detail)
+
+
+@router.get("/envelope", response_model=RodEnvelopeOut)
+async def rod_envelope(
+    _user: Viewer, settings: Annotated[Settings, Depends(app_settings)]
+) -> RodEnvelopeOut:
+    """The rod limits the server enforces, so clients can show them (and pre-validate)."""
+    return RodEnvelopeOut(
+        min_insertion_percent=settings.rod_min_insertion_percent,
+        max_withdraw_step_percent=settings.rod_max_step_percent,
+    )
 
 
 @router.post("/rods", response_model=ReactorControlOut)

@@ -35,6 +35,7 @@ ENDPOINTS: list[tuple[str, str, dict[str, Any] | None, Role | None]] = [
     ("GET", "/api/history", None, Role.VIEWER),
     ("GET", "/api/alarms", None, Role.VIEWER),
     ("GET", "/api/alarms/limits", None, Role.VIEWER),
+    ("GET", "/api/reactor/envelope", None, Role.VIEWER),
     ("POST", f"/api/alarms/{uuid.uuid4()}/ack", None, Role.OPERATOR),
     ("POST", "/api/reactor/rods", {"target_percent": 22.0}, Role.OPERATOR),
     ("POST", "/api/reactor/scram", None, Role.OPERATOR),
