@@ -1,5 +1,8 @@
 # reactor-monitor
 
+[![CI](https://github.com/gjohal78/reactor-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/gjohal78/reactor-monitor/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/gjohal78/reactor-monitor/badges/coverage.json)](https://github.com/gjohal78/reactor-monitor/actions/workflows/ci.yml)
+
 An educational, simplified reactor monitoring app built as a portfolio project.
 
 > ⚠️ **Not a real safety system.** The reactor is a toy simulation for learning purposes only.
@@ -43,6 +46,12 @@ make lint        # ruff, mypy, eslint, tsc
 make test        # pytest + vitest
 make format      # ruff auto-fix + format
 ```
+
+CI (GitHub Actions) runs on every push: ruff, strict mypy and pytest with branch coverage
+against a PostgreSQL service container; ESLint, type checking, Vitest and the production
+build; then a Playwright end-to-end test (operator signs in, raises a power alarm,
+acknowledges it and scrams the reactor) against the real backend and database. The
+coverage badge is published to the `badges` branch by the workflow.
 
 ## Layout
 

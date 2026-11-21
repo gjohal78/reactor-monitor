@@ -19,3 +19,13 @@ dist/
 .vscode/
 .idea/
 .DS_Store
+
+# Playwright
+playwright-report/
+test-results/
+
+# Coverage
+.coverage
+coverage.xml
+coverage.json
+htmlcov/
