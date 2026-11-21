@@ -25,7 +25,8 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-reactor}:${POSTGRES_PASSWORD:-reactor}@postgres:5432/${POSTGRES_DB:-reactor}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      # Unset in dev: the backend falls back to its dev-only secret (refused outside dev).
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-jwt-secret-do-not-use-in-production}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:

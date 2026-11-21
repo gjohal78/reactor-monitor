@@ -10,6 +10,7 @@ import uuid
 from collections.abc import Callable
 from datetime import datetime
 
+from app.alarms.definitions import AlarmLimits, build_definitions
 from app.alarms.manager import AlarmChange, AlarmManager, AlarmNotFoundError, AlarmRecord
 from app.alarms.states import AlarmState, InvalidTransitionError
 from app.alarms.store import AlarmStore
@@ -41,8 +42,10 @@ class AlarmService:
         store: AlarmStore,
         hub: TelemetryHub,
         clock: Callable[[], datetime],
+        limits: AlarmLimits | None = None,
     ) -> None:
         self.manager = manager
+        self.limits = limits or AlarmLimits()
         self.store = store
         self.hub = hub
         self._clock = clock
@@ -60,7 +63,13 @@ class AlarmService:
             self._persist_in_background(change.record)
         return changes
 
-    async def acknowledge(self, alarm_id: uuid.UUID) -> AlarmRecord:
+    def set_limits(self, limits: AlarmLimits) -> None:
+        """Apply new limits from the next simulator tick on. Open alarms keep the limit they
+        were raised against in their record, and are re-evaluated against the new limits."""
+        self.manager.set_definitions(build_definitions(limits))
+        self.limits = limits
+
+    async def acknowledge(self, alarm_id: uuid.UUID) -> AlarmChange:
         try:
             change = self.manager.acknowledge(alarm_id, self._clock())
         except AlarmNotFoundError:
@@ -75,7 +84,7 @@ class AlarmService:
             ) from None
         self._publish(change)
         await self.store.save(change.record)  # respond only once the ack is stored
-        return change.record
+        return change
 
     def snapshot_message(self) -> str:
         alarms = [AlarmOut.from_record(r) for r in self.manager.open_alarms]

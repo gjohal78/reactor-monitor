@@ -6,7 +6,13 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from app.db.models import Reading
-from tests.conftest import FROZEN_NOW
+from tests.conftest import FROZEN_NOW, Headers
+
+
+@pytest.fixture(autouse=True)
+def _authenticated(client: TestClient, as_viewer: Headers) -> None:
+    """History is readable by every role; these tests run as a viewer."""
+    client.headers.update(as_viewer)
 
 
 def add_reading(engine: Engine, minutes_ago: float, power: float = 100.0) -> None:

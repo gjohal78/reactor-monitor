@@ -10,24 +10,32 @@ Frames are JSON objects ``{"type": ..., "data": ...}``:
 import asyncio
 import contextlib
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from app.alarms.service import AlarmService
+from app.auth.dependencies import websocket_user
 from app.realtime.hub import TelemetryHub
 
 router = APIRouter(tags=["telemetry"])
 
 
 @router.websocket("/ws/telemetry")
-async def telemetry(websocket: WebSocket) -> None:
+async def telemetry(websocket: WebSocket, token: str | None = None) -> None:
     """Stream telemetry and alarm changes as JSON text frames. Server-to-client only.
 
     On connect the client gets the open alarms and the latest sample straight away. The
     subscription starts before that snapshot is taken (with no await in between), so no
     alarm change can fall in the gap between the snapshot and the live stream.
+
+    Requires a valid access token (any role) as ``?token=...``, because browsers can't send
+    an Authorization header on a WebSocket. Without one the handshake is refused (HTTP 403).
+    The token is checked once, at connect time.
     A second task reads from the socket purely to notice when the client disconnects;
     otherwise a client that goes away would only be noticed on the next failed send.
     """
+    if await asyncio.to_thread(websocket_user, websocket, token) is None:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     hub: TelemetryHub = websocket.app.state.hub
     alarms: AlarmService = websocket.app.state.alarms
     await websocket.accept()

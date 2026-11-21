@@ -49,10 +49,15 @@ class AlarmNotFoundError(Exception):
 
 class AlarmManager:
     def __init__(self, definitions: Sequence[AlarmDefinition]) -> None:
-        self.definitions = {d.code: d for d in definitions}
-        if len(self.definitions) != len(definitions):
-            raise ValueError("Alarm codes must be unique")
+        self.definitions: dict[str, AlarmDefinition] = {}
+        self.set_definitions(definitions)
         self._open: dict[str, AlarmRecord] = {}  # code -> open (non-NORMAL) occurrence
+
+    def set_definitions(self, definitions: Sequence[AlarmDefinition]) -> None:
+        by_code = {d.code: d for d in definitions}
+        if len(by_code) != len(definitions):
+            raise ValueError("Alarm codes must be unique")
+        self.definitions = by_code
 
     @property
     def open_alarms(self) -> list[AlarmRecord]:

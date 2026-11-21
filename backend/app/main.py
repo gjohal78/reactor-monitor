@@ -1,8 +1,11 @@
 """FastAPI application factory and ASGI entrypoint (`uvicorn app.main:app`).
 
 URL layout:
-  /api/*  JSON API (health, history, alarms), proxied by Vite at the same path in dev
+  /api/*  JSON API (auth, health, history, alarms, reactor control, audit); Vite proxies it
   /ws/*   WebSockets (telemetry + alarm changes)
+
+Only /api/health is public (for container health checks); everything else needs a login,
+enforced per route by the role dependencies in app.auth.dependencies.
 
 Startup builds the DB engine, telemetry hub, alarm service and simulator runner,
 reloads alarms left open by a previous run, and starts the 10 Hz loop. The schema
@@ -21,7 +24,8 @@ from app.alarms.definitions import AlarmLimits, build_definitions
 from app.alarms.manager import AlarmManager
 from app.alarms.service import AlarmService
 from app.alarms.store import AlarmStore
-from app.api.routes import alarms, health, history, telemetry
+from app.api.routes import alarms, audit, auth, health, history, reactor, telemetry
+from app.audit.log import AuditLogger
 from app.core.config import Settings, get_settings
 from app.db.session import make_engine, make_session_factory
 from app.realtime.hub import TelemetryHub
@@ -51,8 +55,9 @@ def create_app(
         session_factory = make_session_factory(engine)
         hub = TelemetryHub()
         alarm_store = AlarmStore(session_factory)
+        limits = alarm_limits(settings)
         alarm_service = AlarmService(
-            AlarmManager(build_definitions(alarm_limits(settings))), alarm_store, hub, clock
+            AlarmManager(build_definitions(limits)), alarm_store, hub, clock, limits
         )
         await alarm_service.restore()
         runner = SimulationRunner(
@@ -68,6 +73,7 @@ def create_app(
         app.state.hub = hub
         app.state.runner = runner
         app.state.alarms = alarm_service
+        app.state.audit = AuditLogger(session_factory, clock)
         app.state.clock = clock
         if settings.simulator_enabled:
             runner.start()
@@ -93,9 +99,15 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(health.router, prefix="/api")
-    app.include_router(history.router, prefix="/api")
-    app.include_router(alarms.router, prefix="/api")
+    for router in (
+        auth.router,
+        health.router,
+        history.router,
+        alarms.router,
+        reactor.router,
+        audit.router,
+    ):
+        app.include_router(router, prefix="/api")
     app.include_router(telemetry.router)
     return app
 

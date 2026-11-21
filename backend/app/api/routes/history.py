@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import Viewer
 from app.db.models import Reading
 from app.db.session import get_session
 from app.schemas import HistoryResponse, ReadingOut
@@ -24,6 +25,7 @@ def get_clock(request: Request) -> Callable[[], datetime]:
 
 @router.get("/history", response_model=HistoryResponse)
 def history(
+    _user: Viewer,
     session: Annotated[Session, Depends(get_session)],
     clock: Annotated[Callable[[], datetime], Depends(get_clock)],
     minutes: Annotated[int, Query(ge=1, le=MAX_MINUTES, description="Look-back window")] = 15,

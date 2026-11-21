@@ -2,9 +2,15 @@ import time
 
 from fastapi.testclient import TestClient
 
+from tests.conftest import access_token, login
+
+
+def ws_url(client: TestClient, role: str = "viewer") -> str:
+    return f"/ws/telemetry?token={access_token(login(client, role))}"
+
 
 def test_websocket_streams_live_telemetry(live_client: TestClient) -> None:
-    with live_client.websocket_connect("/ws/telemetry") as ws:
+    with live_client.websocket_connect(ws_url(live_client)) as ws:
         snapshot = ws.receive_json()
         first_msg = ws.receive_json()
         second_msg = ws.receive_json()
@@ -33,7 +39,7 @@ def test_websocket_streams_live_telemetry(live_client: TestClient) -> None:
 def test_disconnected_clients_are_unsubscribed(live_client: TestClient) -> None:
     hub = live_client.app.state.hub  # type: ignore[attr-defined]
 
-    with live_client.websocket_connect("/ws/telemetry") as ws:
+    with live_client.websocket_connect(ws_url(live_client)) as ws:
         ws.receive_json()  # alarm snapshot
         assert hub.subscriber_count == 1
 

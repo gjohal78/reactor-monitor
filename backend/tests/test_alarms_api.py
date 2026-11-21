@@ -3,6 +3,7 @@
 import uuid
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -14,7 +15,13 @@ from app.db.models import Alarm
 from app.main import create_app
 from app.sim.reactor import ReactorState
 from tests.alarm_helpers import HIGH_POWER_STATE, NORMAL_STATE, make_state
-from tests.conftest import FROZEN_NOW
+from tests.conftest import FROZEN_NOW, Headers, login
+
+
+@pytest.fixture(autouse=True)
+def _authenticated(client: TestClient, as_operator: Headers) -> None:
+    """Acknowledging needs the operator role; these tests run as an operator."""
+    client.headers.update(as_operator)
 
 
 def service(client: TestClient) -> AlarmService:
@@ -109,7 +116,8 @@ def test_ack_malformed_id_is_422(client: TestClient) -> None:
 
 
 def test_alarm_changes_are_broadcast_over_websocket(client: TestClient) -> None:
-    with client.websocket_connect("/ws/telemetry") as ws:
+    token = client.headers["Authorization"].removeprefix("Bearer ")
+    with client.websocket_connect(f"/ws/telemetry?token={token}") as ws:
         assert ws.receive_json() == {"type": "alarm_snapshot", "data": []}
 
         feed(client, HIGH_POWER_STATE)
@@ -133,8 +141,9 @@ def test_alarm_changes_are_broadcast_over_websocket(client: TestClient) -> None:
 
 def test_websocket_snapshot_lists_open_alarms(client: TestClient) -> None:
     alarm_id = raise_hi_power(client)
+    token = client.headers["Authorization"].removeprefix("Bearer ")
 
-    with client.websocket_connect("/ws/telemetry") as ws:
+    with client.websocket_connect(f"/ws/telemetry?token={token}") as ws:
         snapshot = ws.receive_json()
 
     assert snapshot["type"] == "alarm_snapshot"
@@ -146,6 +155,7 @@ def test_open_alarms_survive_a_restart(client: TestClient, settings: Settings) -
 
     restarted = create_app(settings, clock=lambda: FROZEN_NOW)
     with TestClient(restarted) as new_client:
+        new_client.headers.update(login(new_client, "operator"))
         (alarm,) = new_client.get("/api/alarms").json()
         assert (alarm["id"], alarm["state"]) == (alarm_id, AlarmState.ACTIVE_UNACKED)
 
@@ -154,10 +164,11 @@ def test_open_alarms_survive_a_restart(client: TestClient, settings: Settings) -
         assert new_client.post(f"/api/alarms/{alarm_id}/ack").json()["state"] == "NORMAL"
 
 
-def test_alarm_limits_come_from_settings(settings: Settings) -> None:
+def test_alarm_limits_come_from_settings(settings: Settings, users: object) -> None:
     custom = settings.model_copy(update={"alarm_hi_power_percent": 100.5})
 
     with TestClient(create_app(custom, clock=lambda: FROZEN_NOW)) as client:
+        client.headers.update(login(client, "viewer"))
         feed(client, make_state(power=101.0))
         (alarm,) = client.get("/api/alarms").json()
 

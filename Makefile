@@ -4,7 +4,7 @@
 -include .env
 BACKEND_PORT  ?= 8000
 FRONTEND_PORT ?= 5173
-.PHONY: help up down logs migrate install test test-backend test-frontend lint lint-backend lint-frontend format
+.PHONY: help up down logs migrate create-user install test test-backend test-frontend lint lint-backend lint-frontend format
 
 BACKEND  := backend
 FRONTEND := frontend
@@ -28,6 +28,10 @@ logs: ## Tail service logs
 
 migrate: $(VENV_STAMP) ## Apply database migrations to DATABASE_URL
 	cd $(BACKEND) && .venv/bin/alembic upgrade head
+
+create-user: ## Create a user in the running stack: make create-user USERNAME=alice ROLE=supervisor
+	@test -n "$(USERNAME)" -a -n "$(ROLE)" || (echo "usage: make create-user USERNAME=alice ROLE=viewer|operator|supervisor"; exit 1)
+	docker compose exec backend python -m app.cli create-user --username "$(USERNAME)" --role "$(ROLE)"
 
 # --- Local toolchain --------------------------------------------------------
 # Re-run pip whenever pyproject.toml changes (e.g. a new dependency), not just on first use.

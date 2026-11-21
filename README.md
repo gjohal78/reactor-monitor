@@ -24,8 +24,11 @@ make up          # postgres + backend + frontend
 - API docs: http://localhost:8000/docs
 - Health: http://localhost:8000/api/health
 - History: http://localhost:8000/api/history?minutes=15
-- Alarms: `GET /api/alarms`, `POST /api/alarms/{id}/ack`
-- Live stream: `ws://localhost:8000/ws/telemetry`, JSON frames `{"type", "data"}`:
+- Auth: `POST /api/auth/login` (form: username, password), `POST /api/auth/refresh`, `GET /api/auth/me`
+- Alarms: `GET /api/alarms`, `POST /api/alarms/{id}/ack`, `GET`/`PUT /api/alarms/limits`
+- Reactor control: `POST /api/reactor/rods`, `/scram`, `/reset-scram`
+- Audit log: `GET /api/audit` (supervisor)
+- Live stream: `ws://localhost:8000/ws/telemetry?token=<access token>`, JSON frames `{"type", "data"}`:
   `alarm_snapshot` on connect, then `telemetry` (10 Hz) and `alarm` (state changes)
 
 `make down` stops everything.
@@ -61,8 +64,36 @@ automatically before the API starts; `make migrate` applies them to the database
 - [x] Reactor simulator
 - [x] Live telemetry over WebSockets
 - [x] Persistence with SQLAlchemy + migrations
-- [ ] JWT auth with roles
+- [x] JWT auth with roles
 - [ ] Recharts dashboard
+
+## Users, roles and audit
+
+Everything except `/api/health` needs a login. Create accounts with the CLI (there is
+no sign-up endpoint); the password is prompted for, never passed on the command line:
+
+```bash
+make create-user USERNAME=alice ROLE=supervisor   # while `make up` is running
+```
+
+| Role | Can |
+| --- | --- |
+| viewer | read telemetry, history, alarms and alarm limits |
+| operator | + acknowledge alarms, move rods within the envelope, scram |
+| supervisor | + change alarm limits, reset after a scram, read the audit log |
+
+Roles are enforced by FastAPI dependencies on every route, and the user is reloaded
+from the database on each request, so disabling a user or changing a role takes effect
+immediately. Access tokens last 15 minutes, refresh tokens 7 days. Passwords are hashed
+with bcrypt.
+
+Every login (successful or not) and every control action (accepted or rejected) is written
+to `audit_log` with who, when, the client IP and the old and new values. The table is
+append-only: database triggers reject UPDATE and DELETE (and TRUNCATE on Postgres).
+
+The rod envelope applies to every role: rods can't be withdrawn above 10 % inserted, and
+one command can withdraw them at most 5 % (`ROD_*` settings). Inserting rods is never
+limited.
 
 ## Alarms
 

@@ -2,9 +2,9 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.alarms.manager import AlarmChange, AlarmRecord
 from app.alarms.states import AlarmEvent, AlarmState
@@ -111,3 +111,70 @@ class AlarmSnapshotMessage(BaseModel):
 
     type: Literal["alarm_snapshot"] = "alarm_snapshot"
     data: list[AlarmOut]
+
+
+# --- Auth -------------------------------------------------------------------------------------
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: Literal["bearer"] = "bearer"
+    expires_in: int  # access token lifetime, seconds
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    role: str
+
+
+# --- Reactor control ------------------------------------------------------------------------
+
+
+class RodCommandIn(BaseModel):
+    target_percent: float = Field(ge=0, le=100, description="Rod insertion target, % of stroke")
+
+
+class ReactorControlOut(BaseModel):
+    rod_target_percent: float
+    rod_position_percent: float
+    scrammed: bool
+
+
+# --- Alarm limits ---------------------------------------------------------------------------
+
+
+class AlarmLimitsIO(BaseModel):
+    hi_power_percent: float = Field(gt=0, le=200)
+    hi_power_deadband: float = Field(ge=0, le=50)
+    hi_temp_c: float = Field(gt=0, le=1000)
+    hi_temp_deadband: float = Field(ge=0, le=50)
+    short_period_s: float = Field(gt=0, le=3600)
+    short_period_deadband: float = Field(ge=0, le=600)
+
+
+# --- Audit ----------------------------------------------------------------------------------
+
+
+class AuditEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    timestamp: datetime
+    user_id: int | None
+    username: str
+    role: str | None
+    action: str
+    target: str | None
+    success: bool
+    old_value: dict[str, Any] | None
+    new_value: dict[str, Any] | None
+    detail: str | None
+    client_ip: str | None
