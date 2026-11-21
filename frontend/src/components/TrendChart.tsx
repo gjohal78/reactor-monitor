@@ -53,9 +53,21 @@ export const TrendChart = memo(function TrendChart({ title, data, dataKey, unit,
   }, [data, dataKey, domain]);
   return (
     <section className="panel" aria-labelledby={titleId}>
-      <h2 className="panel-title" id={titleId}>
-        {title}, last 15 minutes
-      </h2>
+      <div className="chart-header">
+        <h2 className="panel-title" id={titleId}>
+          {title}, last 15 minutes
+        </h2>
+        {limit !== undefined ? (
+          // A key in the header rather than a label on the line, which would collide
+          // with the data whenever the line runs close to the limit.
+          <span className="chart-key">
+            <svg width="22" height="8" aria-hidden="true">
+              <line x1="0" y1="4" x2="22" y2="4" stroke="var(--warning)" strokeWidth="2" strokeDasharray="6 4" />
+            </svg>
+            Alarm limit {String(limit)} {unit}
+          </span>
+        ) : null}
+      </div>
       {data.length < 2 ? (
         <div className="chart-empty">Waiting for data…</div>
       ) : (
@@ -81,17 +93,7 @@ export const TrendChart = memo(function TrendChart({ title, data, dataKey, unit,
                 {...AXIS}
               />
               {limit !== undefined ? (
-                <ReferenceLine
-                  y={limit}
-                  stroke="var(--warning)"
-                  strokeDasharray="6 4"
-                  label={{
-                    value: `Alarm ${String(limit)} ${unit}`,
-                    position: "insideTopRight",
-                    fill: "#fab219",
-                    fontSize: 12,
-                  }}
-                />
+                <ReferenceLine y={limit} stroke="var(--warning)" strokeDasharray="6 4" />
               ) : null}
               <Tooltip
                 cursor={{ stroke: "#6b737d", strokeWidth: 1 }}
