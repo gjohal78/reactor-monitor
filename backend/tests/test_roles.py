@@ -11,9 +11,12 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, func, select
+from sqlalchemy.orm import Session
 from starlette.websockets import WebSocketDisconnect
 
 from app.auth.roles import Role
+from app.db.models import AuditLog
 from tests.conftest import access_token, login
 
 VALID_LIMITS = {
@@ -62,6 +65,7 @@ def expected_status_class(caller: Role | None, required: Role | None) -> str:
 @pytest.mark.parametrize("caller", CALLERS, ids=lambda c: c.value if c else "anonymous")
 def test_role_matrix(
     client: TestClient,
+    engine: Engine,
     users: dict[Role, int],
     caller: Role | None,
     method: str,
@@ -81,8 +85,29 @@ def test_role_matrix(
             assert response.status_code == 403
             assert required is not None
             assert required.value in response.json()["detail"]
+            assert caller is not None
+            assert denials(engine, caller.value, f"{method} {path}") == 1
         case _:
             assert response.status_code not in (401, 403), response.text
+            if caller is not None:
+                assert denials(engine, caller.value, f"{method} {path}") == 0
+
+
+def denials(engine: Engine, username: str, target: str) -> int:
+    """ACCESS_DENIED audit entries for this user and request."""
+    with Session(engine) as session:
+        return (
+            session.scalar(
+                select(func.count())
+                .select_from(AuditLog)
+                .where(
+                    AuditLog.action == "ACCESS_DENIED",
+                    AuditLog.username == username,
+                    AuditLog.target == target[:64],
+                )
+            )
+            or 0
+        )
 
 
 def test_forbidden_requests_change_nothing(client: TestClient, users: dict[Role, int]) -> None:

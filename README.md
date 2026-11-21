@@ -91,7 +91,9 @@ immediately. Access tokens last 15 minutes, refresh tokens 7 days. Passwords are
 with bcrypt.
 
 Every login (successful or not) and every control action (accepted or rejected) is written
-to `audit_log` with who, when, the client IP and the old and new values. The table is
+to `audit_log` with who, when, the client IP and the old and new values. A logged-in user
+who tries something their role doesn't allow gets a 403, recorded as `ACCESS_DENIED` with
+the request they attempted. The table is
 append-only: database triggers reject UPDATE and DELETE (and TRUNCATE on Postgres).
 
 The rod envelope applies to every role: rods can't be withdrawn above 10 % inserted, and

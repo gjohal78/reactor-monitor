@@ -12,10 +12,11 @@ role or bumping their token_version takes effect on their very next request.
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, WebSocket, status
+from fastapi import Depends, HTTPException, Request, WebSocket, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.audit.log import AuditAction, write_audit
 from app.auth.roles import Role
 from app.auth.tokens import InvalidTokenError, TokenType, decode_token
 from app.core.config import Settings, app_settings
@@ -63,14 +64,33 @@ def get_current_user(
 
 
 def require_role(required: Role) -> Callable[..., User]:
-    """Dependency factory: 401 without a valid token, 403 if the role is too low."""
+    """Dependency factory: 401 without a valid token, 403 if the role is too low.
 
-    def dependency(user: Annotated[User, Depends(get_current_user)]) -> User:
-        if not Role(user.role).allows(required):
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, f"Requires the {required.value} role or higher"
-            )
-        return user
+    Every 403 is written to the audit log as ACCESS_DENIED (who, which request, which role
+    it needed) before the error is returned, so attempts to exceed a role are on record.
+    401s are not audited: without a valid token there is no user to attribute them to.
+    """
+
+    def dependency(
+        user: Annotated[User, Depends(get_current_user)],
+        request: Request,
+        session: Annotated[Session, Depends(get_session)],
+    ) -> User:
+        if Role(user.role).allows(required):
+            return user
+        detail = f"Requires the {required.value} role or higher"
+        write_audit(
+            session,
+            timestamp=request.app.state.clock(),
+            action=AuditAction.ACCESS_DENIED,
+            user=user,
+            success=False,
+            target=f"{request.method} {request.url.path}"[:64],
+            detail=detail,
+            client_ip=request.client.host if request.client else None,
+        )
+        session.commit()
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail)
 
     dependency.__name__ = f"require_{required.value}"
     return dependency

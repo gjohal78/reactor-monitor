@@ -217,7 +217,19 @@ def test_operator_cannot_change_alarm_limits(
     response = client.put("/api/alarms/limits", json=VALID_LIMITS, headers=as_operator)
 
     assert response.status_code == 403
+    # The attempt is on record, as ACCESS_DENIED rather than a limits change...
+    (denied,) = audit(client, as_supervisor, action="ACCESS_DENIED")
+    assert denied["username"] == "operator"
+    assert denied["role"] == "operator"
+    assert denied["success"] is False
+    assert denied["target"] == "PUT /api/alarms/limits"
+    assert denied["detail"] == "Requires the supervisor role or higher"
+    assert denied["timestamp"] == "2026-11-18T12:00:00Z"
+    assert denied["client_ip"] == "testclient"
+    # ...and the limits did not change.
     assert audit(client, as_supervisor, action="ALARM_LIMITS_CHANGE") == []
+    limits = client.get("/api/alarms/limits", headers=as_operator).json()
+    assert limits["hi_power_percent"] == 105.0
 
 
 @pytest.mark.parametrize(

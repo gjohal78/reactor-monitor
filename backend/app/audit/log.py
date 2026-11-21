@@ -18,6 +18,7 @@ class AuditAction(StrEnum):
     SCRAM = "SCRAM"
     SCRAM_RESET = "SCRAM_RESET"
     ALARM_LIMITS_CHANGE = "ALARM_LIMITS_CHANGE"
+    ACCESS_DENIED = "ACCESS_DENIED"  # a logged-in user tried something their role can't do
 
 
 def write_audit(
